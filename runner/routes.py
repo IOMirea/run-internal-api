@@ -3,7 +3,7 @@ from aiohttp import web
 routes = web.RouteTableDef()
 
 
-@routes.get("/health_check")
+@routes.route("OPTIONS", "/health_check")
 async def healthcheck(req: web.Request) -> web.Response:
     return web.Response(status=200)
 
