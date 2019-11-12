@@ -5,7 +5,7 @@ routes = web.RouteTableDef()
 
 @routes.get("/health_check")
 async def healthcheck(req: web.Request) -> web.Response:
-    return web.Response(status=404)
+    return web.Response(status=200)
 
 
 @routes.post("/run")
