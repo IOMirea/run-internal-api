@@ -1,0 +1,7 @@
+config-version: 0
+
+redis-rpc:
+  host: "localhost"
+  port: "6379"
+sentry:
+  dsn: ""
