@@ -30,7 +30,7 @@ docker image inspect $IMAGE_NAME 1>/dev/null
 
 echo "$6" > $new_folder/input
 
-docker run --network=none --memory=$4 --memory-swap=$4 --cpus=$5 \
+docker run --rm --network=none --memory=$4 --memory-swap=$4 --cpus=$5 \
            -v $new_folder_host:$CONTAINER_OUT_DIR \
            -v $new_folder_host/input:/input \
            -e OUT_DIR=$CONTAINER_OUT_DIR $IMAGE_NAME

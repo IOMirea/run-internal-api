@@ -53,6 +53,6 @@ if __name__ == "__main__":
     app = create_app(config)
 
     app["active_containers"] = 0
-    app["max_active_containers"] = 8
+    app["max_active_containers"] = 6
 
     web.run_app(app, host=args.host, port=args.port)
