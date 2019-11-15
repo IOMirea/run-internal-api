@@ -20,7 +20,7 @@
 
 set -e
 
-TIMEOUT=${TIMEOUT:-20}
+TIMEOUT=${TIMEOUT:-30}
 OUT_DIR=${OUT_DIR:?Variable not set}
 
 STDOUT_FILE=$OUT_DIR/stdout
