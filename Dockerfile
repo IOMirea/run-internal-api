@@ -23,6 +23,7 @@ RUN apk add --no-cache --virtual build-deps \
 
 EXPOSE 8080
 
+COPY scripts/run_container.sh /usr/bin/
 COPY . .
 
 # RUN addgroup -S iomirea && \

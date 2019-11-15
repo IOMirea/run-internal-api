@@ -51,4 +51,8 @@ if __name__ == "__main__":
     uvloop.install()
 
     app = create_app(config)
+
+    app["active_containers"] = 0
+    app["max_active_containers"] = 8
+
     web.run_app(app, host=args.host, port=args.port)

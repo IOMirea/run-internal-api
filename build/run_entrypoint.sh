@@ -40,5 +40,5 @@ EOT
 
 end_time=$(date +%s%03N)
 
-echo $exit_code > $EXIT_CODE_FILE
-echo $((end_time-start_time)) > $EXEC_TIME_FILE
+printf $exit_code > $EXIT_CODE_FILE
+printf $((end_time-start_time)) > $EXEC_TIME_FILE

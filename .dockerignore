@@ -21,3 +21,4 @@ README.md
 iomirea-run-runner.service
 
 scripts
+!scripts/run_container.sh

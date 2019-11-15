@@ -1,5 +1,10 @@
 config-version: 0
 
+app:
+  container-memory: "512m"
+  container-cpus: "0.5"
+  host-folder: "/results"
+  local-folder: "/results"
 redis-rpc:
   host: "localhost"
   port: "6379"
