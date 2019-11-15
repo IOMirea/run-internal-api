@@ -12,6 +12,8 @@ ExecStartPre=-%h/bin/docker stop %n
 ExecStartPre=-%h/bin/docker rm %n
 ExecStart=%h/bin/docker run --name %n --rm --pull always -p 8080:8080 \
                             -v %h/run-api-private/runner/data/config.yaml:/code/runner/data/config.yaml \
+                            -v /var/run/docker.sock:/var/run/docker.sock \
+                            -v %h/run_results:/results \
                             iomirea/run-api-private --enable-sentry
 
 [Install]
