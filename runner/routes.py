@@ -58,13 +58,13 @@ async def run_code(req: web.Request) -> web.Response:
     finally:
         req.app["active_containers"] -= 1
 
-    if shell_result.exit_code != 0:
-        log.error(f"Error running container. Result: {shell_result}")
-
-        raise web.HTTPInternalServerError(reason="Error running container")
-
-    folder = shell_result.stdout.rstrip()
+    folder = shell_result.stdout.split("\n")[0]
     try:
+        if shell_result.exit_code != 0:
+            log.error(f"Error running container. Result: {shell_result}")
+
+            raise web.HTTPInternalServerError(reason="Error running container")
+
         defaults = {"exit_code": "-1", "stdout": "", "stderr": "", "exec_time": "-1"}
 
         result: Dict[str, Union[str, int]] = {}

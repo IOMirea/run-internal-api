@@ -7,7 +7,7 @@
 #     ./run_container.sh <language> <local folder> <host folder> <memory limit> <cpu limit> <code>
 #
 # Example:
-#     ./run_container.sh python /results /runner_results 128m 0.5 "print(\"Hello world\")""
+#     ./run_container.sh python /results /runner_results 128m 0.5 'print("Hello world")'
 
 set -e
 
