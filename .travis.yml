@@ -2,6 +2,8 @@ version: ~> 1.0
 
 os: linux
 dist: bionic
+language: python
+python: 3.7
 
 services:
   - docker
@@ -15,9 +17,6 @@ jobs:
         - scripts/build_all_languages.sh HEAD^
 
     - name: main
-      language: python
-      python: 3.7
-
       cache:
         pip: true
         directories:

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Description:
 #     This script detects which language images should be rebuilded and outputs language names.
@@ -16,18 +16,17 @@ if [ "$#" -ne 2 ]; then
   exit 1
 fi
 
-DOCKERFILE_PATTERN=build/*.Dockerfile
+DOCKERFILE_PATTERN="build/*.Dockerfile"
 ENTRYPOINT_FILE=build/run_entrypoint.sh
 
-updated_files=$(git diff --name-only $1 $2)
+updated_files=$(git diff --name-only "$1" "$2")
 
 if [[ $updated_files =~ (^|[[:space:]])"$ENTRYPOINT_FILE"($|[[:space:]]) ]] ; then
   files_to_update=$(ls build/*.Dockerfile)
 else
-  files_to_update=$(echo $updated_files | grep $DOCKERFILE_PATTERN)
+  files_to_update=$(echo "$updated_files" | grep "$DOCKERFILE_PATTERN" || true)
 fi
 
-for language in $files_to_update
-do
-  echo ${language:6:-11}
+for language in $files_to_update; do
+  echo "${language:6:-11}"
 done
