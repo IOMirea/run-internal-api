@@ -37,4 +37,8 @@ async def run_code(req: web.Request) -> web.Response:
     if runner.busy:
         raise web.HTTPInternalServerError(reason="No free containers")
 
-    return web.json_response(await runner.run_code(language, code))
+    return web.json_response(
+        await runner.run_code(
+            language, code, data.get("compile_command", ""), data["merge_output"]
+        )
+    )
