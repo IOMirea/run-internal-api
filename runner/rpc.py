@@ -8,15 +8,24 @@ from copy import copy
 from jarpc import Server, Request
 from aiohttp import web
 
+from .utils import run_shell_command
+
 log = logging.getLogger(__name__)
 
 COMMAND_UPDATE_RUNNERS = 0
+COMMAND_UPDATE_LANGUAGE = 1
 
 
-async def update(req: Request) -> None:
+async def update_self(req: Request) -> None:
     log.debug("killing process")
 
     os.kill(os.getpid(), signal.SIGTERM)
+
+
+async def update_language(req: Request, language: str) -> None:
+    log.debug("updating language %s", language)
+
+    await run_shell_command(f"docker pull iomirea/run-lang-{language}")
 
 
 async def on_startup(app: web.Application) -> None:
@@ -28,7 +37,8 @@ async def on_startup(app: web.Application) -> None:
     log.debug("creating rpc connection")
 
     server = Server("run-api")
-    server.add_command(COMMAND_UPDATE_RUNNERS, update)
+    server.add_command(COMMAND_UPDATE_RUNNERS, update_self)
+    server.add_command(COMMAND_UPDATE_LANGUAGE, update_language)
 
     app["rpc"] = server
 
