@@ -14,6 +14,7 @@ jobs:
       language: shell
 
       script:
+        - scripts/ci_docker_login.sh
         - scripts/build_all_languages.sh HEAD^
 
     - name: main
@@ -39,6 +40,7 @@ jobs:
       deploy:
         edge: true
         provider: script
-        script: scripts/docker_push.sh
+        script:
+          - scripts/ci_docker_login.sh && docker push $DOCKER_IMAGE_NAME
         on:
           branch: master
