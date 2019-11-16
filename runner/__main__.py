@@ -14,6 +14,7 @@ from .rpc import setup as setup_rpc
 from .config import read_config
 from .logger import setup as setup_logger
 from .routes import routes
+from .runner import DockerRunner
 
 DEBUG_MODE = args.verbosity == logging.DEBUG
 
@@ -24,6 +25,15 @@ def create_app(config: Dict[str, Any]) -> web.Application:
     app.add_routes(routes)
 
     setup_rpc(app)
+
+    app_config = app["config"]["app"]
+    app["runner"] = DockerRunner(
+        app_config["max-container-ram"],
+        app_config["max-container-cpu"],
+        app_config["local-folder"],
+        app_config["host-folder"],
+        app_config["max-containers"],
+    )
 
     return app
 
@@ -51,8 +61,5 @@ if __name__ == "__main__":
     uvloop.install()
 
     app = create_app(config)
-
-    app["active_containers"] = 0
-    app["max_active_containers"] = 6
 
     web.run_app(app, host=args.host, port=args.port)

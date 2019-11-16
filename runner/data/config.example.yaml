@@ -1,8 +1,10 @@
 config-version: 0
 
 app:
-  container-memory: "512m"
-  container-cpus: "0.5"
+  max-container-ram: 512m
+  max-container-cpu: 0.5
+  max-output-file-size: 1m
+  max-containers: null
   host-folder: "/results"
   local-folder: "/results"
 redis-rpc:

@@ -34,11 +34,11 @@ exit_code=0
 start_time=$(date +%s%03N)
 
 # TODO: remove timeout usage. it comes with coreutils package
-timeout --preserve-status --k=1s $TIMEOUT sh <<EOT || exit_code=$?
+timeout --preserve-status --k=1s "$TIMEOUT" sh <<EOT || exit_code=$?
   $@ 1> $STDOUT_FILE 2> $STDERR_FILE
 EOT
 
 end_time=$(date +%s%03N)
 
-printf $exit_code > $EXIT_CODE_FILE
-printf $((end_time-start_time)) > $EXEC_TIME_FILE
+printf "%d" $exit_code > "$EXIT_CODE_FILE"
+printf "%d" $((end_time-start_time)) > "$EXEC_TIME_FILE"
