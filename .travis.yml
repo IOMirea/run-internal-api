@@ -2,35 +2,44 @@ version: ~> 1.0
 
 os: linux
 dist: bionic
-language: python
-python: 3.7
-
-cache:
-  pip: true
-  directories:
-    - $HOME/.cache/pre-commit
 
 services:
   - docker
 
-env:
-  global:
-    - PIP_DISABLE_PIP_VERSION_CHECK=yes
-    - DOCKER_IMAGE_NAME=iomirea/run-api-private
+jobs:
+  include:
+    - name: languages
+      language: shell
 
-before_install:
-  - docker pull "$DOCKER_IMAGE_NAME" || true  # pull to use image as cache
-  - docker build --cache-from "$DOCKER_IMAGE_NAME" -t "$DOCKER_IMAGE_NAME" . --build-arg GIT_COMMIT=$(git log -1 --format=%h)
+      script:
+        - scripts/build_all_languages.sh HEAD^
 
-install:
-  - pip install pre-commit  # -r requirements.txt
+    - name: main
+      language: python
+      python: 3.7
 
-script:
-  - pre-commit run --all-files
+      cache:
+        pip: true
+        directories:
+          - $HOME/.cache/pre-commit
 
-deploy:
-  edge: true
-  provider: script
-  script: scripts/docker_push.sh
-  on:
-    branch: master
+      env:
+        - PIP_DISABLE_PIP_VERSION_CHECK=yes
+        - DOCKER_IMAGE_NAME=iomirea/run-api-private
+
+      before_install:
+        - docker pull "$DOCKER_IMAGE_NAME" || true  # pull to use image as cache
+        - docker build --cache-from "$DOCKER_IMAGE_NAME" -t "$DOCKER_IMAGE_NAME" . --build-arg GIT_COMMIT=$TRAVIS_COMMIT
+
+      install:
+        - pip install pre-commit  # -r requirements.txt
+
+      script:
+        - pre-commit run --all-files
+
+      deploy:
+        edge: true
+        provider: script
+        script: scripts/docker_push.sh
+        on:
+          branch: master
