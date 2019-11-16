@@ -12,7 +12,7 @@
 set -e
 
 if [ "$#" -ne 6 ]; then
-  echo "Not enough arguments passsed" >&2
+  echo "Wrong number of arguments passsed" >&2
   exit 1
 fi
 
