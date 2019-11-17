@@ -41,9 +41,10 @@ timeout --preserve-status --k=1s "$TIMEOUT" sh <<EOT || exit_code=$?
   }
 
   if [ -z "$MERGE_OUTPUT" ]; then
-    run_user_code 1> $STDOUT_FILE 2> $STDERR_FILE
+    run_user_code 1> "$STDOUT_FILE" 2> "$STDERR_FILE"
   else
-    run_user_code > $STDOUT_FILE 2>&1
+    touch "$STDERR_FILE"
+    run_user_code > "$STDOUT_FILE" 2>&1
   fi
 EOT
 
