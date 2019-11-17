@@ -13,9 +13,19 @@ jobs:
     - name: languages
       language: shell
 
+      env:
+        - CUSTOM_CACHE_DIR=$HOME/.cache/iomirea-run
+        - DEPLOYED_COMMIT_FILE=$CUSTOM_CACHE_DIR/deployed_commit
+
+      cache:
+        directories:
+          - $CUSTOM_CACHE_DIR
+
       script:
         - scripts/ci_docker_login.sh
-        - scripts/build_all_languages.sh HEAD^
+        # if $DEPLOYED_COMMIT_FILE, read it. otherwise use previous commit
+        - scripts/build_all_languages.sh $([ -e $DEPLOYED_COMMIT_FILE ] cat $DEPLOYED_COMMIT_FILE || echo HEAD^)
+        - echo $TRAVIS_COMMIT > $DEPLOYED_COMMIT_FILE
 
     - name: main
       cache:

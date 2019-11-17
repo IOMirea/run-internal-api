@@ -5,7 +5,7 @@
 #    pip-compile --no-index --output-file=requirements.txt requirements.in
 #
 aiohttp==3.5.4
-aioredis==1.2.0           # via jarpc
+aioredis==1.2.0
 async-timeout==3.0.1      # via aiohttp, aioredis
 attrs==19.1.0             # via aiohttp
 certifi==2019.6.16        # via sentry-sdk
