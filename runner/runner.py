@@ -4,7 +4,7 @@ import shlex
 import shutil
 import logging
 
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Tuple, Union, Optional
 from contextlib import suppress
 
 from aiohttp import web
@@ -57,7 +57,9 @@ class DockerRunner:
     async def run_code(self, *args: Any, **kwargs: Any) -> _ResultType:
         self._running_containers += 1
         try:
-            folder = await self._run_container(*args, **kwargs)
+            folder, success = await self._run_container(*args, **kwargs)
+            if not success:
+                raise web.HTTPBadRequest(reason="Error running container")
 
             result: _ResultType = {}
             for name in DEFAULT_RESULTS.keys():
@@ -95,7 +97,7 @@ class DockerRunner:
 
     async def _run_container(
         self, language: str, code: str, compile_command: str, merge_output: bool
-    ) -> str:
+    ) -> Tuple[str, bool]:
         with configure_scope() as scope:
             scope.set_tag("language", language)
 
@@ -107,6 +109,8 @@ class DockerRunner:
         new_host_folder = f"{self._host_folder}/{random_name}"
 
         image_name = f"iomirea/run-lang-{language}"
+
+        success = False
 
         os.makedirs(new_local_folder)
         try:
@@ -137,13 +141,11 @@ class DockerRunner:
                     scope.set_extra("stdout", result.stdout)
                     scope.set_extra("stderr", result.stderr)
 
-                    log.error(f"error running container: {result}")
-
-                raise web.HTTPInternalServerError(reason="Error running container")
-        except Exception as e:
-            log.exception(f"error processiong container: {e}")
+                log.error(f"error running container: {result}")
+            else:
+                success = True
         finally:
-            return new_local_folder
+            return new_local_folder, success
 
     def calculate_optimal_container_count(self) -> int:
         # TODO
