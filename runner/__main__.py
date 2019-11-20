@@ -30,8 +30,6 @@ def create_app(config: Dict[str, Any]) -> web.Application:
     app["runner"] = DockerRunner(
         app_config["max-container-ram"],
         app_config["max-container-cpu"],
-        app_config["local-folder"],
-        app_config["host-folder"],
         app_config["max-containers"],
     )
 

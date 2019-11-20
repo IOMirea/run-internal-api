@@ -21,17 +21,10 @@ DOCKER_RUN_EXIT_CODES = {125, 126, 127}
 
 class DockerRunner:
     def __init__(
-        self,
-        max_ram: str,
-        max_cpu: float,
-        local_folder: str,
-        host_folder: str,
-        max_containers: Optional[int] = None,
+        self, max_ram: str, max_cpu: float, max_containers: Optional[int] = None
     ):
         self._max_ram = max_ram
         self._max_cpu = max_cpu
-        self._local_folder = local_folder
-        self._host_folder = host_folder
 
         self._max_containers = (
             self.calculate_optimal_container_count()
