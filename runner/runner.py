@@ -131,7 +131,7 @@ class DockerRunner:
             return dict(
                 stdout=run_result.stdout,
                 stderr=run_result.stderr,
-                exit_code=exit_code,
+                exit_code=int(exit_code),
                 exec_time=exec_time,
             )
         finally:
