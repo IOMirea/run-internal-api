@@ -87,11 +87,11 @@ class ShellResult:
                 and limit > 0
             ):
                 if tasks["stdout"] is None and not stdout.at_eof():
-                    tasks["stdout"] = asyncio.create_task(
+                    tasks["stdout"] = asyncio.create_task(  # type: ignore
                         stdout.read(chunk_size), name="stdout"
                     )
                 if tasks["stderr"] is None and not stderr.at_eof():
-                    tasks["stderr"] = asyncio.create_task(
+                    tasks["stderr"] = asyncio.create_task(  # type: ignore
                         stderr.read(chunk_size), name="stderr"
                     )
 
@@ -107,7 +107,7 @@ class ShellResult:
                     continue
 
                 for task in done:
-                    name = task.get_name()
+                    name = task.get_name()  # type: ignore
                     chunk = task.result()
 
                     limit -= len(chunk)
