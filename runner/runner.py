@@ -121,7 +121,12 @@ class DockerRunner:
 
                 return datetime.fromisoformat(datetime_no_ms).timestamp() + ms_and_ns
 
-            exec_time = parse_datetime_ns(finished_at) - parse_datetime_ns(started_at)
+            if finished_at == "0001-01-01T00:00:00Z":  # killed, no timestamp set
+                exec_time = -1.0
+            else:
+                exec_time = parse_datetime_ns(finished_at) - parse_datetime_ns(
+                    started_at
+                )
 
             return dict(
                 stdout=run_result.stdout,
