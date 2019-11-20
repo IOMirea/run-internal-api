@@ -15,7 +15,7 @@ idna==2.8                 # via yarl
 git+https://github.com/IOMirea/jarpc
 multidict==4.5.2          # via aiohttp, yarl
 pyyaml==5.1.1
-sentry-sdk==0.11.2
+sentry-sdk==0.13.2
 typing-extensions==3.7.4.1  # via aiohttp
 urllib3==1.25.3           # via sentry-sdk
 uvloop==0.14.0
