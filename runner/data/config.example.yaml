@@ -5,8 +5,6 @@ app:
   max-container-cpu: 0.5
   max-output-file-size: 1m
   max-containers: null
-  host-folder: "/results"
-  local-folder: "/results"
 redis-rpc:
   host: "localhost"
   port: "6379"

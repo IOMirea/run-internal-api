@@ -1,14 +1,17 @@
 #!/bin/sh
 
 # Description:
-#     This script runs provided command with timeout sending output to directory.
+#     This script runs provided command with timeout.
 #
 # Env variables:
+#     INPUT:
+#         Source code.
+#     COMPILE_COMMAND:
+#         Compilation command. Should output result from `compile_input` to `exec_input`.
 #     TIMEOUT:
 #         Timeout for execution in seconds. Defaults to 30.
-#     OUT_DIR:
-#         Directory that is used for results such as stdout, stderr, execution time,
-#         exit code.
+#     MERGE_OUTPUT:
+#         Merges stdout and stderr in stdout if set.
 #
 # Usage:
 #     ./run_entrypoint.sh <arguments>
@@ -16,24 +19,19 @@
 # Example:
 #     ./run_entrypoint.sh python main.py
 #
-# TODO: compilation
 
 set -e
 
 TIMEOUT=${TIMEOUT:-30}
-OUT_DIR=${OUT_DIR:?Variable not set}
 
-STDOUT_FILE=$OUT_DIR/stdout
-STDERR_FILE=$OUT_DIR/stderr
-EXEC_TIME_FILE=$OUT_DIR/exec_time
-EXIT_CODE_FILE=$OUT_DIR/exit_code
+if [ -z "$COMPILE_COMMAND"]; then
+  echo "$INPUT" > exec_input
+else
+  echo "$INPUT" > compile_input
+fi
 
-# placeholder, it will not be overwritten if process exits successfully
 exit_code=0
 
-start_time=$(date +%s%03N)
-
-# TODO: remove timeout usage. it comes with coreutils package
 timeout --preserve-status --k=1s "$TIMEOUT" sh <<EOT || exit_code=$?
   run_user_code() {
     $COMPILE_COMMAND
@@ -41,14 +39,10 @@ timeout --preserve-status --k=1s "$TIMEOUT" sh <<EOT || exit_code=$?
   }
 
   if [ -z "$MERGE_OUTPUT" ]; then
-    run_user_code 1> "$STDOUT_FILE" 2> "$STDERR_FILE"
+    run_user_code
   else
-    touch "$STDERR_FILE"
-    run_user_code > "$STDOUT_FILE" 2>&1
+    run_user_code 2>&1
   fi
 EOT
 
-end_time=$(date +%s%03N)
-
-printf "%d" $exit_code > "$EXIT_CODE_FILE"
-printf "%d" $((end_time-start_time)) > "$EXEC_TIME_FILE"
+exit $exit_code
