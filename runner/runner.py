@@ -6,7 +6,7 @@ from typing import Any, Dict, Union, Optional
 from datetime import datetime
 
 from aiohttp import web
-from sentry_sdk import configure_scope
+from sentry_sdk import push_scope, configure_scope
 
 from .utils import ShellResult, run_shell_command
 
@@ -85,7 +85,7 @@ class DockerRunner:
                     if result.exit_code == 0:
                         return
 
-                with configure_scope() as scope:
+                with push_scope() as scope:
                     scope.set_extra("exit_code", result.exit_code)
                     scope.set_extra("stdout", result.stdout[:1024])
                     scope.set_extra("stderr", result.stderr[:1024])
