@@ -2,7 +2,7 @@ import uuid
 import shlex
 import logging
 
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, List, Union, Optional
 from datetime import datetime
 
 from aiohttp import web
@@ -16,6 +16,10 @@ _ResultType = Dict[str, Union[str, int, float]]
 
 OUTPUT_LEN_LIMIT = 1024 * 1024 / 2
 
+# docker run/start forwards process exit code. it has reserved exit codes 125, 126 and
+# 127. they should be remapped.
+# TODO: document this
+EXIT_CODE_MAP = {253: 125, 254: 126, 255: 127}
 DOCKER_RUN_EXIT_CODES = {125, 126, 127}
 
 
@@ -46,7 +50,7 @@ class DockerRunner:
             self._running_containers -= 1
 
     async def _run_container(
-        self, language: str, code: str, compile_command: str, merge_output: bool
+        self, language: str, code: str, compile_commands: List[str], merge_output: bool
     ) -> _ResultType:
         with configure_scope() as scope:
             scope.set_tag("language", language)
@@ -67,8 +71,10 @@ class DockerRunner:
                 f"--memory {self._max_ram} --memory-swap {self._max_ram} "
             )
 
-            if compile_command:
-                command += f"-e COMPILE_COMMAND={shlex.quote(compile_command)} "
+            if compile_commands:
+                command += (
+                    f"-e COMPILE_COMMAND={shlex.quote(' && '.join(compile_commands))} "
+                )
 
             if merge_output:
                 command += "-e MERGE_OUTPUT=1 "
@@ -102,15 +108,13 @@ class DockerRunner:
             )
             check_result(run_result, "running", docker_run=True)
 
-            inspect_format = (
-                "{{.State.ExitCode}};{{.State.StartedAt}};{{.State.FinishedAt}};"
-            )
+            inspect_format = "{{.State.StartedAt}};{{.State.FinishedAt}};"
             inspect_result = await run_shell_command(
                 f"docker inspect {random_name} --format='{inspect_format}'", wait=True
             )
             check_result(inspect_result, "inspecting")
 
-            exit_code, started_at, finished_at, _ = inspect_result.stdout.split(";")
+            started_at, finished_at, _ = inspect_result.stdout.split(";")
 
             def parse_datetime_ns(inp: str) -> float:
                 """Converts iso formatted string with nanoseconds precision to float."""
@@ -131,7 +135,7 @@ class DockerRunner:
             return dict(
                 stdout=run_result.stdout,
                 stderr=run_result.stderr,
-                exit_code=int(exit_code),
+                exit_code=EXIT_CODE_MAP.get(run_result.exit_code, run_result.exit_code),
                 exec_time=exec_time,
             )
         finally:

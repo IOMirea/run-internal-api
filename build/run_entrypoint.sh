@@ -24,7 +24,7 @@ set -e
 
 TIMEOUT=${TIMEOUT:-30}
 
-if [ -z "$COMPILE_COMMAND"]; then
+if [ -z "$COMPILE_COMMAND" ]; then
   echo "$INPUT" > exec_input
 else
   echo "$INPUT" > compile_input
@@ -44,5 +44,18 @@ timeout --preserve-status --k=1s "$TIMEOUT" sh <<EOT || exit_code=$?
     run_user_code 2>&1
   fi
 EOT
+
+# reserved docker run/start exit codes
+# 125 -> 253
+# 126 -> 254
+# 127 -> 255
+case $exit_code in
+  125) return 253
+  ;;
+  126) return 254
+  ;;
+  127) return 255
+  ;;
+esac
 
 exit $exit_code
