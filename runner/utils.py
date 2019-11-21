@@ -35,7 +35,7 @@ class ShellResult:
             raise RuntimeError("Process is still running")
 
         if self._stdout is None:
-            self._stdout = self.stdout_bytes.decode()
+            self._stdout = self.stdout_bytes.decode(errors="replace")
 
         return self._stdout
 
@@ -45,7 +45,7 @@ class ShellResult:
             raise RuntimeError("Process is still running")
 
         if self._stderr is None:
-            self._stderr = self.stderr_bytes.decode()
+            self._stderr = self.stderr_bytes.decode(errors="replace")
 
         return self._stderr
 
