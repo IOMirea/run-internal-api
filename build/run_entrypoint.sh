@@ -33,6 +33,8 @@ fi
 exit_code=0
 
 timeout --preserve-status --k=1s "$TIMEOUT" sh <<EOT || exit_code=$?
+  set -e
+
   run_user_code() {
     $COMPILE_COMMAND
     $@
