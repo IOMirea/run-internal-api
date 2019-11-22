@@ -16,7 +16,7 @@ if [ "$#" -ne 2 ]; then
   exit 1
 fi
 
-DOCKERFILE_PATTERN="build/*.Dockerfile"
+DOCKERFILE_REGEX="^build/..*\.Dockerfile$"
 ENTRYPOINT_FILE=build/run_entrypoint.sh
 
 updated_files=$(git diff --name-only "$1" "$2")
@@ -24,7 +24,7 @@ updated_files=$(git diff --name-only "$1" "$2")
 if [[ $updated_files =~ (^|[[:space:]])"$ENTRYPOINT_FILE"($|[[:space:]]) ]] ; then
   files_to_update=$(ls build/*.Dockerfile)
 else
-  files_to_update=$(echo "$updated_files" | grep "$DOCKERFILE_PATTERN" || true)
+  files_to_update=$(echo "$updated_files" | grep "$DOCKERFILE_REGEX" || true)
 fi
 
 for language in $files_to_update; do
