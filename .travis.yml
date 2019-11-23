@@ -24,7 +24,7 @@ jobs:
       script:
         - scripts/ci_docker_login.sh
         # if $DEPLOYED_COMMIT_FILE, read it. otherwise use previous commit
-        - scripts/build_all_languages.sh $([ -e $DEPLOYED_COMMIT_FILE ] cat $DEPLOYED_COMMIT_FILE || echo HEAD^)
+        - scripts/build_all_languages.sh $([ -e "$DEPLOYED_COMMIT_FILE" ] && cat "$DEPLOYED_COMMIT_FILE" || echo HEAD^)
         - echo $TRAVIS_COMMIT > $DEPLOYED_COMMIT_FILE
 
     - name: main
