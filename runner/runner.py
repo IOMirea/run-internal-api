@@ -43,6 +43,11 @@ class DockerRunner:
         return self._running_containers >= self._max_containers
 
     async def run_code(self, *args: Any, **kwargs: Any) -> _ResultType:
+        if self.busy:
+            raise web.HTTPServiceUnavailable(
+                reason="No free containers. Try again later"
+            )
+
         self._running_containers += 1
         try:
             return await self._run_container(*args, **kwargs)

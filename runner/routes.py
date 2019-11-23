@@ -33,10 +33,6 @@ async def run_code(req: web.Request) -> web.Response:
     if code is None:
         raise web.HTTPBadRequest(reason="Code is missing from body")
 
-    runner = req.config_dict["runner"]
-    if runner.busy:
-        raise web.HTTPInternalServerError(reason="No free containers")
-
     compile_commands = []
     for compiler, compile_args in zip(
         data.get("compilers", ()), data.get("compile_args", ())
@@ -44,7 +40,7 @@ async def run_code(req: web.Request) -> web.Response:
         compile_commands.append(f"{compiler} {compile_args}")
 
     return web.json_response(
-        await runner.run_code(
+        await req.config_dict["runner"].run_code(
             language, code, data.pop("input"), compile_commands, data["merge_output"]
         )
     )
