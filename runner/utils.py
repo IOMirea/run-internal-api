@@ -15,8 +15,7 @@ class ShellResult:
         self._process = process
         self._finally_kill = finally_kill
 
-        self.stdout_bytes = b""
-        self.stderr_bytes = b""
+        self._bytes = {"stdout": b"", "stderr": b""}
 
         self._stdout: Optional[str] = None
         self._stderr: Optional[str] = None
@@ -35,7 +34,7 @@ class ShellResult:
             raise RuntimeError("Process is still running")
 
         if self._stdout is None:
-            self._stdout = self.stdout_bytes.decode(errors="replace")
+            self._stdout = self._bytes["stdout"].decode(errors="replace")
 
         return self._stdout
 
@@ -45,7 +44,7 @@ class ShellResult:
             raise RuntimeError("Process is still running")
 
         if self._stderr is None:
-            self._stderr = self.stderr_bytes.decode(errors="replace")
+            self._stderr = self._bytes["stderr"].decode(errors="replace")
 
         return self._stderr
 
@@ -59,11 +58,13 @@ class ShellResult:
         limit: Optional[int] = None,
         *,
         timeout: Optional[float],
+        input: Optional[bytes] = None,
         interval: float = 0.3,
         rate: float = 100,
         kill_after_limit: bool = True,
     ) -> None:
         try:
+            stdin = self._process.stdin
             stdout = self._process.stdout
             stderr = self._process.stderr
 
@@ -73,6 +74,13 @@ class ShellResult:
             if stderr is None:
                 raise RuntimeError("stderr reader is missing")
 
+            if stdin is not None:
+                if input is not None:
+                    stdin.write(input)
+                    await stdin.drain()
+
+                stdin.close()
+
             limit = DEFAULT_READ_LIMIT if limit is None else limit
             chunk_size = int(limit * interval / rate) or MIN_CHUNK_SIZE
 
@@ -81,43 +89,29 @@ class ShellResult:
                 "stderr": None,
             }
 
+            async def read_task(stream: asyncio.StreamReader, name: str) -> None:
+                self._bytes[name] += await stream.read(chunk_size)
+                tasks[name] = None
+
+            stream_pairs = zip(("stdout", "stderr"), (stdout, stderr))
             while (
                 self._time_remaining(timeout) > 0
                 and not (stdout.at_eof() and stderr.at_eof())
                 and limit > 0
             ):
-                if tasks["stdout"] is None and not stdout.at_eof():
-                    tasks["stdout"] = asyncio.create_task(  # type: ignore
-                        stdout.read(chunk_size), name="stdout"
-                    )
-                if tasks["stderr"] is None and not stderr.at_eof():
-                    tasks["stderr"] = asyncio.create_task(  # type: ignore
-                        stderr.read(chunk_size), name="stderr"
-                    )
-
-                to_wait = [t for t in tasks.values() if t is not None]
+                for name, stream in stream_pairs:
+                    if tasks[name] is None and not stream.at_eof():
+                        tasks[name] = asyncio.create_task(read_task(stream, name))
 
                 done, pending = await asyncio.wait(
-                    to_wait,
-                    timeout=self._time_remaining(interval),
+                    [t for t in tasks.values() if t is not None],
+                    timeout=interval,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
+
                 if not done:
                     # timeout
                     continue
-
-                for task in done:
-                    name = task.get_name()  # type: ignore
-                    chunk = task.result()
-
-                    limit -= len(chunk)
-
-                    if name == "stdout":
-                        tasks["stdout"] = None
-                        self.stdout_bytes += chunk
-                    else:
-                        tasks["stderr"] = None
-                        self.stderr_bytes += chunk
 
             if limit <= 0:
                 if kill_after_limit:
@@ -162,9 +156,9 @@ async def run_shell_command(
 
     process = await asyncio.create_subprocess_shell(
         command,
-        # stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        stdin=asyncio.subprocess.PIPE if input is not None else None,
     )
 
     result = ShellResult(process)
@@ -172,11 +166,11 @@ async def run_shell_command(
     if not wait:
         return result
 
-    kwargs = dict(timeout=timeout)
+    kwargs = dict(timeout=timeout, input=input)
 
     if not read:
         kwargs["kill_after_limit"] = False
 
-    await result.read(0 if not read else limit, **kwargs)  # type: ignore
+    await result.read(0 if not read else limit, **kwargs)  # type:ignore
 
     return result

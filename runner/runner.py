@@ -50,7 +50,12 @@ class DockerRunner:
             self._running_containers -= 1
 
     async def _run_container(
-        self, language: str, code: str, compile_commands: List[str], merge_output: bool
+        self,
+        language: str,
+        code: str,
+        input: Optional[str],
+        compile_commands: List[str],
+        merge_output: bool,
     ) -> _ResultType:
         with configure_scope() as scope:
             scope.set_tag("language", language)
@@ -66,7 +71,7 @@ class DockerRunner:
         try:
             command = (
                 f"docker create --name {random_name} --workdir {workdir} "
-                f"--log-driver none --network none "
+                f"--log-driver none --network none --interactive "
                 f"--cpus {self._max_cpu} -e INPUT={shlex.quote(code)} "
                 f"--memory {self._max_ram} --memory-swap {self._max_ram} "
             )
@@ -93,8 +98,9 @@ class DockerRunner:
 
                 with push_scope() as scope:
                     scope.set_extra("exit_code", result.exit_code)
-                    scope.set_extra("stdout", result.stdout[:1024])
-                    scope.set_extra("stderr", result.stderr[:1024])
+                    scope.set_extra("stdout", result.stdout)
+                    scope.set_extra("stderr", result.stderr)
+                    scope.set_extra("input", input)
 
                 log.error(result)
 
@@ -103,8 +109,17 @@ class DockerRunner:
             create_result = await run_shell_command(command, wait=True)
             check_result(create_result, "creating")
 
+            if input is None:
+                stdin = None
+            else:
+                if not input.endswith("\n"):
+                    input += "\n"
+                stdin = input.encode(errors="replace")
+
             run_result = await run_shell_command(
-                f"docker start --attach {random_name}", wait=True
+                f"docker start --attach --interactive {random_name}",
+                wait=True,
+                input=stdin,
             )
             check_result(run_result, "running", docker_run=True)
 

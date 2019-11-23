@@ -20,32 +20,25 @@
 #     ./run_entrypoint.sh python main.py
 #
 
-set -e
-
 TIMEOUT=${TIMEOUT:-30}
 
 if [ -z "$COMPILE_COMMAND" ]; then
   echo "$INPUT" > exec_input
+  COMPILE_COMMAND=true
 else
   echo "$INPUT" > compile_input
 fi
 
-exit_code=0
+export COMPILE_COMMAND
 
-timeout --preserve-status --k=1s "$TIMEOUT" sh <<EOT || exit_code=$?
-  set -e
+if [ -n "$MERGE_OUTPUT" ]; then
+    exec 2>&1
+fi
 
-  run_user_code() {
-    $COMPILE_COMMAND
-    $@
-  }
+script='$COMPILE_COMMAND; "$@"'
 
-  if [ -z "$MERGE_OUTPUT" ]; then
-    run_user_code
-  else
-    run_user_code 2>&1
-  fi
-EOT
+timeout --preserve-status --k=1s "$TIMEOUT" sh -e -c "$script" x "$@"
+exit_code=$?
 
 # reserved docker run/start exit codes
 # 125 -> 253

@@ -44,5 +44,7 @@ async def run_code(req: web.Request) -> web.Response:
         compile_commands.append(f"{compiler} {compile_args}")
 
     return web.json_response(
-        await runner.run_code(language, code, compile_commands, data["merge_output"])
+        await runner.run_code(
+            language, code, data.pop("input"), compile_commands, data["merge_output"]
+        )
     )
