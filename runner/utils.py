@@ -63,63 +63,67 @@ class ShellResult:
         rate: float = 100,
         kill_after_limit: bool = True,
     ) -> None:
+
+        stdin = self._process.stdin
+        stdout = self._process.stdout
+        stderr = self._process.stderr
+
+        if stdout is None:
+            raise RuntimeError("stdout reader is missing")
+
+        if stderr is None:
+            raise RuntimeError("stderr reader is missing")
+
+        if stdin is not None:
+            if input is not None:
+                stdin.write(input)
+                await stdin.drain()
+
+            stdin.close()
+
+        read_limit = DEFAULT_READ_LIMIT if limit is None else limit
+        chunk_size = int(read_limit * interval / rate) or MIN_CHUNK_SIZE
+
+        tasks: Dict[str, Optional[asyncio.Task[bytes]]] = {
+            "stdout": None,
+            "stderr": None,
+        }
+
+        async def read_task(stream: asyncio.StreamReader, name: str) -> None:
+            nonlocal read_limit
+
+            chunk = await stream.read(chunk_size)
+            read_limit -= len(chunk)
+            self._bytes[name] += chunk
+
+            tasks[name] = None
+
+        stream_pairs = list(zip(("stdout", "stderr"), (stdout, stderr)))
         try:
-            stdin = self._process.stdin
-            stdout = self._process.stdout
-            stderr = self._process.stderr
-
-            if stdout is None:
-                raise RuntimeError("stdout reader is missing")
-
-            if stderr is None:
-                raise RuntimeError("stderr reader is missing")
-
-            if stdin is not None:
-                if input is not None:
-                    stdin.write(input)
-                    await stdin.drain()
-
-                stdin.close()
-
-            limit = DEFAULT_READ_LIMIT if limit is None else limit
-            chunk_size = int(limit * interval / rate) or MIN_CHUNK_SIZE
-
-            tasks: Dict[str, Optional[asyncio.Task[bytes]]] = {
-                "stdout": None,
-                "stderr": None,
-            }
-
-            async def read_task(stream: asyncio.StreamReader, name: str) -> None:
-                self._bytes[name] += await stream.read(chunk_size)
-                tasks[name] = None
-
-            stream_pairs = zip(("stdout", "stderr"), (stdout, stderr))
-            while (
-                self._time_remaining(timeout) > 0
-                and not (stdout.at_eof() and stderr.at_eof())
-                and limit > 0
-            ):
+            while self._time_remaining(timeout) > 0 and read_limit > 0:
                 for name, stream in stream_pairs:
                     if tasks[name] is None and not stream.at_eof():
                         tasks[name] = asyncio.create_task(read_task(stream, name))
 
+                to_wait = [t for t in tasks.values() if t is not None]
+                if not to_wait:
+                    break
+
                 done, pending = await asyncio.wait(
-                    [t for t in tasks.values() if t is not None],
-                    timeout=interval,
-                    return_when=asyncio.FIRST_COMPLETED,
+                    to_wait, timeout=interval, return_when=asyncio.FIRST_COMPLETED
                 )
 
                 if not done:
-                    # timeout
                     continue
 
-            if limit <= 0:
+            for task in pending:
+                task.cancel()
+
+            if read_limit <= 0:
                 if kill_after_limit:
                     self._process.kill()
                 else:
                     await self._wait(timeout)
-        except ValueError:
-            pass
         finally:
             for t in tasks.values():
                 if t is not None:
