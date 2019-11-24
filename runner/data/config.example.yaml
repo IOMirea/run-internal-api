@@ -5,8 +5,12 @@ app:
   max-container-cpu: 0.5
   max-output-file-size: 1m
   max-containers: null
+docker:
+  socket: /var/run/docker.sock
+  username: null
+  password: null
 redis-rpc:
-  host: "localhost"
-  port: "6379"
+  host: localhost
+  port: 6379
 sentry:
-  dsn: ""
+  dsn: https://dsn@sentry.example.com/123

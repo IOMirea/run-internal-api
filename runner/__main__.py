@@ -14,7 +14,7 @@ from .rpc import setup as setup_rpc
 from .config import read_config
 from .logger import setup as setup_logger
 from .routes import routes
-from .runner import DockerRunner
+from .runner import setup as setup_runner
 
 DEBUG_MODE = args.verbosity == logging.DEBUG
 
@@ -26,12 +26,7 @@ def create_app(config: Dict[str, Any]) -> web.Application:
 
     setup_rpc(app)
 
-    app_config = app["config"]["app"]
-    app["runner"] = DockerRunner(
-        app_config["max-container-ram"],
-        app_config["max-container-cpu"],
-        app_config["max-containers"],
-    )
+    app.on_startup.append(setup_runner)
 
     return app
 
