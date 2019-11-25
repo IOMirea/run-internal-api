@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from typing import Any, Dict, List, Union, Mapping, Optional
@@ -19,7 +20,6 @@ CPU_QUOTA = 100000
 OUTPUT_LIMIT = 1024 * 1024
 
 EXEC_TIMEOUT = 30
-CONTAINER_TIMEOUT = EXEC_TIMEOUT + 2
 
 
 async def setup(app: web.Application) -> None:
@@ -117,7 +117,7 @@ class DockerRunner:
                         bytes_read += chunk_length + header_size
 
                 except Exception as e:
-                    log.error(f"error reading stream: {e}")
+                    log.warning(f"error reading stream: {e}")
                 finally:
                     return stdout, stderr
 
@@ -178,7 +178,7 @@ class DockerRunner:
                 body={
                     "Env": env,
                     "Image": f"iomirea/run-lang-{language}",
-                    "StopTimeout": CONTAINER_TIMEOUT,
+                    "StopTimeout": 2,
                     "WorkingDir": "/sandbox",
                     "AutoRemove": False,
                     "NetworkMode": "none",
@@ -196,6 +196,12 @@ class DockerRunner:
 
             await self.docker_request("POST", f"containers/{new_id}/start")
 
+            async def kill_container(delay: int) -> None:
+                await asyncio.sleep(delay)
+                await self.docker_request("POST", f"containers/{new_id}/stop")
+
+            kill_task = asyncio.create_task(kill_container(EXEC_TIMEOUT + 2))
+
             stdout, stderr = await self.docker_request(
                 "POST",
                 f"containers/{new_id}/attach",
@@ -204,6 +210,7 @@ class DockerRunner:
             )
 
             await self.docker_request("POST", f"containers/{new_id}/wait")
+            kill_task.cancel()
 
             inspect_result = await self.docker_request(
                 "GET", f"containers/{new_id}/json"
