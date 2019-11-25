@@ -38,6 +38,6 @@ if [ -n "$MERGE_OUTPUT" ]; then
     exec 2>&1
 fi
 
-script='$COMPILE_COMMAND; "$@"'
+script='$COMPILE_COMMAND; printf "%s" "$INPUT" | "$@"'
 
-timeout --preserve-status --k=1s "$TIMEOUT" printf "%s" "$INPUT" | sh -e -c "$script" x "$@"
+timeout --preserve-status --k=1s "$TIMEOUT" sh -e -c "$script" x "$@"
