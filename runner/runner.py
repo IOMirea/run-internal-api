@@ -102,7 +102,7 @@ class DockerRunner:
                 bytes_read = 0
 
                 try:
-                    while bytes_read < EXEC_TIMEOUT and not resp.content.at_eof():
+                    while bytes_read < OUTPUT_LIMIT and not resp.content.at_eof():
                         header = await resp.content.readexactly(header_size)
 
                         chunk_length = int.from_bytes(header[3:], byteorder="big")
@@ -115,6 +115,9 @@ class DockerRunner:
                             stderr += chunk
 
                         bytes_read += chunk_length + header_size
+
+                except Exception as e:
+                    log.error(f"error reading stream: {e}")
                 finally:
                     return stdout, stderr
 

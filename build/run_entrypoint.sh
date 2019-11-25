@@ -24,6 +24,7 @@
 
 set -e
 
+INPUT=${INPUT:-""}
 TIMEOUT=${TIMEOUT:-30}
 
 if [ -z "$COMPILE_COMMAND" ]; then
@@ -32,8 +33,6 @@ if [ -z "$COMPILE_COMMAND" ]; then
 else
   echo "$CODE" > compile_input
 fi
-
-export COMPILE_COMMAND
 
 if [ -n "$MERGE_OUTPUT" ]; then
     exec 2>&1
