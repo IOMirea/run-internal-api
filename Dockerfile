@@ -18,6 +18,12 @@ RUN apk add --no-cache --virtual build-deps \
         musl-dev \
         git && \
     pip install -r requirements.txt && \
+    # aiohttp installation from source until 4.0.0a2 (sentry integration fix: https://github.com/aio-libs/aiohttp/commit/dd85639f0e1855d8921c57db8643b28ffe3f6b25)
+    git clone https://github.com/aio-libs/aiohttp --depth 1 --recursive aiohttp && cd aiohttp && \
+    git submodule init && \
+    make cythonize && \
+    pip install . && \
+    cd .. && rm -rf aiohttp && \
     apk del build-deps && \
     apk add --no-cache docker-cli
 

@@ -3,6 +3,7 @@ __pycache__
 .dockerignore
 .gitignore
 Dockerfile
+build
 
 *.txt
 !requirements.txt
