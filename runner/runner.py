@@ -109,9 +109,9 @@ class DockerRunner:
                         chunk = await resp.content.read(chunk_length)
 
                         chunk_type = header[0]
-                        if chunk_type == 1:  # stdout
+                        if chunk_type == 1:
                             stdout += chunk
-                        elif chunk_type == 2:  # stderr
+                        elif chunk_type == 2:
                             stderr += chunk
 
                         bytes_read += chunk_length + header_size
@@ -190,16 +190,17 @@ class DockerRunner:
                 },
             )
             new_id = create_result["Id"]
-            log.debug("created %s", new_id)
 
             await self.docker_request("POST", f"containers/{new_id}/start")
 
             stdout, stderr = await self.docker_request(
                 "POST",
                 f"containers/{new_id}/attach",
-                {"logs": 1, "stream": 1, "stdin": 1, "stdout": 1, "stderr": 1},
+                {"logs": 1, "stream": 1, "stdout": 1, "stderr": 1},
                 stream=True,
             )
+
+            await self.docker_request("POST", f"containers/{new_id}/wait")
 
             inspect_result = await self.docker_request(
                 "GET", f"containers/{new_id}/json"
@@ -225,15 +226,20 @@ class DockerRunner:
                 )
 
             return dict(
-                stdout=stdout.decode(errors="ignore"),
-                stderr=stderr.decode(errors="ignore"),
+                stdout=stdout.decode(errors="replace"),
+                stderr=stderr.decode(errors="replace"),
                 exit_code=state["ExitCode"],
                 exec_time=exec_time,
             )
         finally:
-            await self.docker_request(
-                "DELETE", f"containers/{new_id}", {"v": 1, "force": 1}
-            )
+            try:
+                new_id
+            except UnboundLocalError:  # not yet defined
+                log.warn("container not created, skipping deletion")
+            else:
+                await self.docker_request(
+                    "DELETE", f"containers/{new_id}", {"v": 1, "force": 1}
+                )
 
     def calculate_optimal_container_count(self) -> int:
         # TODO
