@@ -53,6 +53,7 @@ class ShellResult:
             self._process.wait(), timeout=self._time_remaining(timeout)
         )
 
+    # no longer needed
     async def read(
         self,
         limit: Optional[int] = None,

@@ -1,4 +1,3 @@
-import uuid
 import logging
 
 from typing import Any, Dict, List, Union, Mapping, Optional
@@ -9,20 +8,18 @@ import aiohttp
 from aiohttp import web
 from sentry_sdk import push_scope, configure_scope
 
-from .utils import ShellResult, run_shell_command
-
 log = logging.getLogger(__name__)
 
 _ResultType = Dict[str, Union[str, int, float]]
-
-OUTPUT_LEN_LIMIT = 1024 * 1024 / 2
 
 DOCKER_API_VERSION = "1.40"
 
 CPU_QUOTA = 100000
 
-# TODO: dlete after replacing run call
-DOCKER_RUN_EXIT_CODES = {125, 126, 127}
+OUTPUT_LIMIT = 1024 * 1024
+
+EXEC_TIMEOUT = 30
+CONTAINER_TIMEOUT = EXEC_TIMEOUT + 2
 
 
 async def setup(app: web.Application) -> None:
@@ -70,37 +67,67 @@ class DockerRunner:
         self._session: aiohttp.ClientSession
 
     async def setup(self) -> None:
-        connector = aiohttp.UnixConnector(path=self._socket)
-        self._session = aiohttp.ClientSession(connector=connector)
+        self._session = aiohttp.ClientSession(
+            connector=aiohttp.UnixConnector(path=self._socket)
+        )
 
     async def docker_request(
         self,
-        method: str,
-        path: str,
-        params: Optional[Mapping[str, Any]] = None,
+        method: str = "GET",
+        path: str = "",
+        params: Mapping[str, Any] = {},
         body: Any = None,
+        stream: bool = False,
     ) -> Any:
         url = f"{self._url_base}/{path}"
         log.debug("%6s: %s", method, url)
-        async with self._session.request(method, url, params=params, json=body) as req:
-            if req.status == 204:
-                body = {}
-            else:
-                body = await req.json()
 
-            if req.status // 100 != 2:
+        async with self._session.request(method, url, params=params, json=body) as resp:
+            if resp.status // 100 not in (2, 3):
+                json = await resp.json()
                 with push_scope() as scope:
-                    scope.set_extra("body", body)
+                    scope.set_extra("request", body)
+                    scope.set_extra("response", json)
 
-                log.error(f"{url}: {req.status} ({body['message']})")
+                log.error(f"{url}: {resp.status} ({json['message']})")
 
-                raise web.HTTPInternalServerError(reason="Docker error")
+                raise web.HTTPInternalServerError(reason="Docker API error")
 
-            warnings = body.get("Warnings")
+            if stream:
+                stdout = b""
+                stderr = b""
+
+                header_size = 8
+
+                bytes_read = 0
+
+                try:
+                    while bytes_read < EXEC_TIMEOUT and not resp.content.at_eof():
+                        header = await resp.content.readexactly(header_size)
+
+                        chunk_length = int.from_bytes(header[3:], byteorder="big")
+                        chunk = await resp.content.read(chunk_length)
+
+                        chunk_type = header[0]
+                        if chunk_type == 1:  # stdout
+                            stdout += chunk
+                        elif chunk_type == 2:  # stderr
+                            stderr += chunk
+
+                        bytes_read += chunk_length + header_size
+                finally:
+                    return stdout, stderr
+
+            if resp.status == 204:
+                json = {}
+            else:
+                json = await resp.json()
+
+            warnings = json.get("Warnings")
             if warnings:
                 log.warn(f"docker warning(s): {warnings}")
 
-            return body
+            return json
 
     @property
     def busy(self) -> bool:
@@ -129,17 +156,15 @@ class DockerRunner:
         with configure_scope() as scope:
             scope.set_tag("language", language)
 
-            scope.set_extra("code", code[:8192])
-
-        random_name = uuid.uuid1().hex
-
-        workdir = "/sandbox"
-
-        image_name = f"iomirea/run-lang-{language}"
-
-        env = [f"INPUT={code}"]
+        env = [f"CODE={code}", f"TIMEOUT={EXEC_TIMEOUT}"]
         if compile_commands:
             env.append(f"COMPILE_COMMAND={' && '.join(compile_commands)}")
+
+        if input is not None:
+            if not input.endswith("\n"):
+                input += "\n"
+            env.append(f"INPUT={input}")
+
         if merge_output:
             env.append("MERGE_OUTPUT=1")
 
@@ -147,20 +172,16 @@ class DockerRunner:
             create_result = await self.docker_request(
                 "POST",
                 "containers/create",
-                {"name": random_name},
-                {
+                body={
                     "Env": env,
-                    "Image": image_name,
-                    "StopTimeout": 40,
-                    "WorkDir": workdir,
+                    "Image": f"iomirea/run-lang-{language}",
+                    "StopTimeout": CONTAINER_TIMEOUT,
+                    "WorkingDir": "/sandbox",
                     "AutoRemove": False,
-                    "OpenStdin": True,
-                    "StdinOnce": True,
                     "NetworkMode": "none",
                     "NetworkDisabled": True,
                     "HealthCheck": {"Test": ("NONE",)},
                     "HostConfig": {
-                        "LogConfig": {"Type": "none"},
                         "Memory": self._max_ram,
                         "MemorySwap": self._max_ram,
                         "CpuQuota": CPU_QUOTA,
@@ -169,41 +190,16 @@ class DockerRunner:
                 },
             )
             new_id = create_result["Id"]
-            log.debug("created container %s", new_id)
+            log.debug("created %s", new_id)
 
-            def check_result(
-                result: ShellResult, action: str, docker_run: bool = False
-            ) -> None:
-                if docker_run:
-                    if result.exit_code not in DOCKER_RUN_EXIT_CODES:
-                        return
-                else:
-                    if result.exit_code == 0:
-                        return
+            await self.docker_request("POST", f"containers/{new_id}/start")
 
-                with push_scope() as scope:
-                    scope.set_extra("exit_code", result.exit_code)
-                    scope.set_extra("stdout", result.stdout)
-                    scope.set_extra("stderr", result.stderr)
-                    scope.set_extra("input", input)
-
-                log.error(result)
-
-                raise web.HTTPInternalServerError(reason=f"Error {action} container")
-
-            if input is None:
-                stdin = None
-            else:
-                if not input.endswith("\n"):
-                    input += "\n"
-                stdin = input.encode(errors="replace")
-
-            run_result = await run_shell_command(
-                f"docker start --attach --interactive {random_name}",
-                wait=True,
-                input=stdin,
+            stdout, stderr = await self.docker_request(
+                "POST",
+                f"containers/{new_id}/attach",
+                {"logs": 1, "stream": 1, "stdin": 1, "stdout": 1, "stderr": 1},
+                stream=True,
             )
-            check_result(run_result, "running", docker_run=True)
 
             inspect_result = await self.docker_request(
                 "GET", f"containers/{new_id}/json"
@@ -229,8 +225,8 @@ class DockerRunner:
                 )
 
             return dict(
-                stdout=run_result.stdout,
-                stderr=run_result.stderr,
+                stdout=stdout.decode(errors="ignore"),
+                stderr=stderr.decode(errors="ignore"),
                 exit_code=state["ExitCode"],
                 exec_time=exec_time,
             )

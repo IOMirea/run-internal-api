@@ -4,8 +4,10 @@
 #     This script runs provided command with timeout.
 #
 # Env variables:
-#     INPUT:
+#     CODE:
 #         Source code.
+#     INPUT:
+#         Stdin.
 #     COMPILE_COMMAND:
 #         Compilation command. Should output result from `compile_input` to `exec_input`.
 #     TIMEOUT:
@@ -20,13 +22,15 @@
 #     ./run_entrypoint.sh python main.py
 #
 
+set -e
+
 TIMEOUT=${TIMEOUT:-30}
 
 if [ -z "$COMPILE_COMMAND" ]; then
-  echo "$INPUT" > exec_input
+  echo "$CODE" > exec_input
   COMPILE_COMMAND=true
 else
-  echo "$INPUT" > compile_input
+  echo "$CODE" > compile_input
 fi
 
 export COMPILE_COMMAND
@@ -37,20 +41,4 @@ fi
 
 script='$COMPILE_COMMAND; "$@"'
 
-timeout --preserve-status --k=1s "$TIMEOUT" sh -e -c "$script" x "$@"
-exit_code=$?
-
-# reserved docker run/start exit codes
-# 125 -> 253
-# 126 -> 254
-# 127 -> 255
-case $exit_code in
-  125) return 253
-  ;;
-  126) return 254
-  ;;
-  127) return 255
-  ;;
-esac
-
-exit $exit_code
+timeout --preserve-status --k=1s "$TIMEOUT" printf "%s" "$INPUT" | sh -e -c "$script" x "$@"
