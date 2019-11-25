@@ -28,16 +28,19 @@ INPUT=${INPUT:-""}
 TIMEOUT=${TIMEOUT:-30}
 
 if [ -z "$COMPILE_COMMAND" ]; then
-  echo "$CODE" > exec_input
+  printf '%s' "$CODE" > exec_input
   COMPILE_COMMAND=true
 else
-  echo "$CODE" > compile_input
+  printf '%s' "$CODE" > compile_input
 fi
 
 if [ -n "$MERGE_OUTPUT" ]; then
     exec 2>&1
 fi
 
-script='$COMPILE_COMMAND; printf "%s" "$INPUT" | "$@"'
+script='
+  eval "$COMPILE_COMMAND"
+  printf "%s" "$INPUT" | "$@"
+'
 
 timeout --preserve-status --k=1s "$TIMEOUT" sh -e -c "$script" x "$@"
