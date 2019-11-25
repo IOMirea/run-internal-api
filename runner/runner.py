@@ -101,8 +101,10 @@ class DockerRunner:
 
                 bytes_read = 0
 
+                over_limit = False
+
                 try:
-                    while bytes_read < OUTPUT_LIMIT and not resp.content.at_eof():
+                    while not over_limit and not resp.content.at_eof():
                         header = await resp.content.readexactly(header_size)
 
                         chunk_length = int.from_bytes(header[3:], byteorder="big")
@@ -115,11 +117,14 @@ class DockerRunner:
                             stderr += chunk
 
                         bytes_read += chunk_length + header_size
+                        over_limit = bytes_read >= OUTPUT_LIMIT
 
+                except asyncio.IncompleteReadError:
+                    pass
                 except Exception as e:
-                    log.warning(f"error reading stream: {e}")
+                    log.error(f"error reading stream: {e}")
                 finally:
-                    return stdout, stderr
+                    return stdout, stderr, over_limit
 
             if resp.status == 204:
                 json = {}
@@ -202,12 +207,15 @@ class DockerRunner:
 
             kill_task = asyncio.create_task(kill_container(EXEC_TIMEOUT + 2))
 
-            stdout, stderr = await self.docker_request(
+            stdout, stderr, over_limit = await self.docker_request(
                 "POST",
                 f"containers/{new_id}/attach",
                 {"logs": 1, "stream": 1, "stdout": 1, "stderr": 1},
                 stream=True,
             )
+
+            if over_limit:
+                await kill_container(0)
 
             await self.docker_request("POST", f"containers/{new_id}/wait")
             kill_task.cancel()
